@@ -1,0 +1,45 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { verifyToken } from '../lib/auth';
+import PasskeyRegister from '../components/PasskeyRegister';
+
+export const prerender = false;
+
+const token = Astro.cookies.get("token")?.value;
+const payload = token ? verifyToken(token) : null;
+
+if (!payload) {
+  return Astro.redirect("/login");
+}
+---
+
+<Layout>
+<div class="min-h-screen flex items-center justify-center bg-gray-100">
+  <div class="card w-96 bg-base-100 shadow-xl">
+    <div class="card-body">
+      <div class="flex justify-between items-center">
+        <h2 class="card-title">Dashboard</h2>
+        <PasskeyRegister client:load />
+      </div>
+      <div class="avatar placeholder mb-4 flex justify-center mt-4">
+        <div class="bg-neutral text-neutral-content rounded-full w-16">
+          <span class="text-xl">{payload.email.charAt(0).toUpperCase()}</span>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <div class="stat">
+          <div class="stat-title">Email</div>
+          <div class="stat-value text-lg">{payload.email}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">User ID</div>
+          <div class="stat-value text-lg">{payload.userId}</div>
+        </div>
+      </div>
+      <div class="card-actions justify-center mt-4">
+        <a href="/" class="btn btn-primary">Logout</a>
+      </div>
+    </div>
+  </div>
+</div>
+</Layout>

@@ -1,0 +1,28 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PasskeyLogin from '../components/PasskeyLogin';
+---
+
+<Layout>
+<div class="min-h-screen flex items-center justify-center bg-gray-100">
+  <div class="card w-96 bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title justify-center">Login</h2>
+      <form action="/api/auth/login" method="POST" class="space-y-4">
+        <div class="form-control">
+          <label class="label">Email</label>
+          <input type="email" name="email" class="input input-bordered" required />
+        </div>
+        <div class="form-control">
+          <label class="label">Password</label>
+          <input type="password" name="password" class="input input-bordered" required />
+        </div>
+        <button type="submit" class="btn btn-primary w-full">Login</button>
+      </form>
+      <div class="divider">OR</div>
+      <PasskeyLogin client:load />
+      <p class="text-center mt-4">Need an account? <a href="/register" class="link">Register</a></p>
+    </div>
+  </div>
+</div>
+</Layout>

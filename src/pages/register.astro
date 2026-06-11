@@ -1,0 +1,25 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+<div class="min-h-screen flex items-center justify-center bg-gray-100">
+  <div class="card w-96 bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title justify-center">Register</h2>
+      <form action="/api/auth/register" method="POST" class="space-y-4">
+        <div class="form-control">
+          <label class="label">Email</label>
+          <input type="email" name="email" class="input input-bordered" required />
+        </div>
+        <div class="form-control">
+          <label class="label">Password</label>
+          <input type="password" name="password" class="input input-bordered" required />
+        </div>
+        <button type="submit" class="btn btn-primary w-full">Register</button>
+      </form>
+      <p class="text-center mt-4">Already have an account? <a href="/login" class="link">Login</a></p>
+    </div>
+  </div>
+</div>
+</Layout>
