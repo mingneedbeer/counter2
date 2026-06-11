@@ -59,7 +59,7 @@ import Layout from '../layouts/Layout.astro';
     const data = await resp.json();
 
     if (data.ok) {
-      window.location.href = "/login";
+      window.location.href = "/verify-email";
     } else {
       errorEl.textContent = data.error || "Registration failed";
       errorEl.classList.remove("hidden");

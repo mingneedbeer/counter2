@@ -28,7 +28,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
-  const token = signToken({ userId: user.id, email: user.email });
+  const token = signToken({ userId: user.id, email: user.email, verified: user.verified });
   cookies.set("token", token, {
     path: "/",
     httpOnly: true,

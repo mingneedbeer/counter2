@@ -1,6 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import PasskeyLogin from '../components/PasskeyLogin';
+
+const verified = Astro.url.searchParams.get("verified");
 ---
 
 <Layout>
@@ -16,6 +18,18 @@ import PasskeyLogin from '../components/PasskeyLogin';
       </div>
 
       <form id="loginForm" class="space-y-4">
+        {verified === "1" && (
+          <div class="alert alert-success text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Email verified! You can now log in.
+          </div>
+        )}
+        {verified === "already" && (
+          <div class="alert alert-info text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            This email is already verified.
+          </div>
+        )}
         <div class="form-control">
           <label class="label" for="email">
             <span class="label-text">Email</span>
