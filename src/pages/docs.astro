@@ -1,0 +1,49 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { verifyToken } from '../lib/auth';
+
+export const prerender = false;
+
+const token = Astro.cookies.get("token")?.value;
+const payload = token ? verifyToken(token) : null;
+if (!payload) {
+  return Astro.redirect("/login");
+}
+---
+
+<Layout>
+<div class="min-h-[calc(100vh-4rem)]">
+  <div class="container mx-auto px-4 py-6">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold">API Documentation</h1>
+        <p class="text-sm text-base-content/60">Signed in as {payload.email}</p>
+      </div>
+      <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+    </div>
+    <div id="swagger-ui" class="bg-base-100 rounded-box min-h-[60vh]"></div>
+  </div>
+</div>
+
+<script is:inline>
+(function() {
+  var link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://unpkg.com/swagger-ui-dist@5/swagger-ui.css";
+  document.head.appendChild(link);
+
+  var script = document.createElement("script");
+  script.src = "https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js";
+  script.onload = function () {
+    SwaggerUIBundle({
+      url: "/api/openapi.json",
+      dom_id: "#swagger-ui",
+      presets: [SwaggerUIBundle.presets.apis],
+      layout: "BaseLayout",
+      deepLinking: true,
+    });
+  };
+  document.body.appendChild(script);
+})();
+</script>
+</Layout>
