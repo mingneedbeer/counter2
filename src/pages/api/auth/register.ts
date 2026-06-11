@@ -5,13 +5,22 @@ import { users } from "../../../../db/schema";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, redirect }) => {
+export const POST: APIRoute = async ({ request }) => {
   const data = await request.formData();
   const email = data.get("email") as string;
   const password = data.get("password") as string;
 
   if (!email || !password) {
-    return new Response("Missing email or password", { status: 400 });
+    return new Response(JSON.stringify({ error: "Missing email or password" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  if (password.length < 3) {
+    return new Response(JSON.stringify({ error: "Password must be at least 3 characters" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const salt = genSaltSync(10);
@@ -19,8 +28,18 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
   try {
     await db.insert(users).values({ email, passwordHash });
-    return redirect("/login");
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
-    return new Response("Error registering user", { status: 500 });
+    const message =
+      error instanceof Error && error.message?.includes("UNIQUE constraint")
+        ? "Email already registered"
+        : "Error registering user";
+    return new Response(JSON.stringify({ error: message }), {
+      status: 409,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };

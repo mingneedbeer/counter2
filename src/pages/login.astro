@@ -4,25 +4,70 @@ import PasskeyLogin from '../components/PasskeyLogin';
 ---
 
 <Layout>
-<div class="min-h-screen flex items-center justify-center bg-gray-100">
-  <div class="card w-96 bg-base-100 shadow-xl">
+<div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
+  <div class="card w-full max-w-sm bg-base-100 shadow-xl">
     <div class="card-body">
-      <h2 class="card-title justify-center">Login</h2>
-      <form action="/api/auth/login" method="POST" class="space-y-4">
+      <div class="text-center mb-2">
+        <div class="size-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+        </div>
+        <h2 class="card-title justify-center text-2xl">Welcome Back</h2>
+        <p class="text-sm text-base-content/60 mt-1">Sign in to your account</p>
+      </div>
+
+      <form id="loginForm" class="space-y-4">
         <div class="form-control">
-          <label class="label">Email</label>
-          <input type="email" name="email" class="input input-bordered" required />
+          <label class="label" for="email">
+            <span class="label-text">Email</span>
+          </label>
+          <input id="email" type="email" name="email" class="input input-bordered" placeholder="you@example.com" required />
         </div>
         <div class="form-control">
-          <label class="label">Password</label>
-          <input type="password" name="password" class="input input-bordered" required />
+          <label class="label" for="password">
+            <span class="label-text">Password</span>
+          </label>
+          <input id="password" type="password" name="password" class="input input-bordered" placeholder="••••••••" required />
         </div>
-        <button type="submit" class="btn btn-primary w-full">Login</button>
+        <div id="errorMsg" class="text-error text-sm hidden"></div>
+        <button type="submit" class="btn btn-primary w-full">
+          Login
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+        </button>
       </form>
-      <div class="divider">OR</div>
+
+      <div class="divider" data-content="OR"></div>
       <PasskeyLogin client:load />
-      <p class="text-center mt-4">Need an account? <a href="/register" class="link">Register</a></p>
+
+      <p class="text-center text-sm mt-2">
+        Don't have an account?
+        <a href="/register" class="link link-primary font-semibold">Register</a>
+      </p>
     </div>
   </div>
 </div>
+
+<script>
+  const form = document.getElementById("loginForm");
+  const errorEl = document.getElementById("errorMsg");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorEl.classList.add("hidden");
+    const fd = new FormData(form);
+
+    const resp = await fetch("/api/auth/login", {
+      method: "POST",
+      body: fd,
+    });
+
+    const data = await resp.json();
+
+    if (data.ok) {
+      window.location.href = "/dashboard";
+    } else {
+      errorEl.textContent = data.error || "Login failed";
+      errorEl.classList.remove("hidden");
+    }
+  });
+</script>
 </Layout>
