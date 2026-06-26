@@ -1,0 +1,151 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { verifyToken } from '../lib/auth';
+import Cart from '../components/Cart';
+
+export const prerender = false;
+
+const token = Astro.cookies.get("token")?.value;
+const payload = token ? verifyToken(token) : null;
+if (!payload) {
+  return Astro.redirect("/login");
+}
+---
+
+<Layout>
+<main class="min-h-[calc(100vh-4rem)] grid lg:grid-cols-[1fr_440px]">
+  <div class="px-6 py-8 lg:px-12 lg:py-10 max-w-2xl mx-auto w-full">
+    <div class="mb-8">
+      <a href="/dashboard" class="link link-neutral text-sm no-underline hover:underline flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+        Back to dashboard
+      </a>
+    </div>
+
+    <div class="flex items-center gap-3 mb-8">
+      <div class="size-10 rounded-full bg-primary text-primary-content flex items-center justify-center font-bold text-sm">1</div>
+      <div>
+        <h1 class="text-xl font-semibold">Contact & Shipping</h1>
+        <p class="text-sm text-base-content/60">Enter your details to continue</p>
+      </div>
+    </div>
+
+    <form id="checkoutForm" class="space-y-6" onsubmit="return false">
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-5">
+          <h2 class="font-semibold flex items-center gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            Contact
+          </h2>
+          <input
+            type="email"
+            name="email"
+            value={payload.email}
+            class="input input-bordered w-full"
+            placeholder="Email"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-5">
+          <h2 class="font-semibold flex items-center gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            Shipping Address
+          </h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+              <input type="text" name="firstName" class="input input-bordered w-full" placeholder="First name" required />
+            </div>
+            <div class="col-span-2">
+              <input type="text" name="lastName" class="input input-bordered w-full" placeholder="Last name" required />
+            </div>
+            <div class="col-span-2">
+              <input type="text" name="address" class="input input-bordered w-full" placeholder="Address" required />
+            </div>
+            <div class="col-span-2">
+              <input type="text" name="apartment" class="input input-bordered w-full" placeholder="Apartment, suite, etc. (optional)" />
+            </div>
+            <div class="col-span-2">
+              <input type="text" name="city" class="input input-bordered w-full" placeholder="City" required />
+            </div>
+            <div>
+              <select name="country" class="select select-bordered w-full" required>
+                <option value="" disabled selected>Country/Region</option>
+                <option value="US">United States</option>
+                <option value="JP">Japan</option>
+                <option value="TW">Taiwan</option>
+                <option value="GB">United Kingdom</option>
+                <option value="DE">Germany</option>
+                <option value="CA">Canada</option>
+                <option value="AU">Australia</option>
+              </select>
+            </div>
+            <div>
+              <input type="text" name="zip" class="input input-bordered w-full" placeholder="ZIP code" required />
+            </div>
+            <div class="col-span-2">
+              <input type="tel" name="phone" class="input input-bordered w-full" placeholder="Phone (optional)" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-5">
+          <h2 class="font-semibold flex items-center gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+            Payment
+          </h2>
+          <div class="border border-base-300 rounded-box p-4">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="radio" name="payment" value="card" class="radio radio-primary" checked />
+              <div class="flex items-center gap-2">
+                <svg class="size-8" viewBox="0 0 36 24" fill="none"><rect width="36" height="24" rx="3" fill="#1A1F71"/><text x="6" y="16" fill="white" font-size="8" font-weight="bold">VISA</text></svg>
+                <svg class="size-8" viewBox="0 0 36 24" fill="none"><rect width="36" height="24" rx="3" fill="#EB001B"/><circle cx="18" cy="12" r="7" fill="#F79E1B"/></svg>
+                <span class="text-sm font-medium">Credit / Debit Card</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 mt-4">
+            <div class="col-span-2">
+              <input type="text" class="input input-bordered w-full" placeholder="Card number" />
+            </div>
+            <div>
+              <input type="text" class="input input-bordered w-full" placeholder="MM / YY" />
+            </div>
+            <div>
+              <input type="text" class="input input-bordered w-full" placeholder="CVC" />
+            </div>
+            <div class="col-span-2">
+              <input type="text" class="input input-bordered w-full" placeholder="Name on card" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-full text-base py-4 h-auto">
+        <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+        Pay now
+      </button>
+
+      <p class="text-xs text-center text-base-content/40">
+        Your personal data will be used to process your order, support your experience, and for other purposes described in our privacy policy.
+      </p>
+    </form>
+  </div>
+
+  <div class="bg-base-200 lg:bg-base-100 px-6 py-8 lg:px-10 lg:py-10 lg:border-l border-base-300">
+    <h2 class="text-lg font-semibold mb-6">Order summary</h2>
+    <Cart client:load />
+    <div class="mt-6 flex items-center justify-center gap-2 text-base-content/40">
+      <svg class="size-8" viewBox="0 0 36 24" fill="none"><rect width="36" height="24" rx="3" fill="#1A1F71"/><text x="6" y="16" fill="white" font-size="8" font-weight="bold">VISA</text></svg>
+      <svg class="size-8" viewBox="0 0 36 24" fill="none"><rect width="36" height="24" rx="3" fill="#EB001B"/><circle cx="18" cy="12" r="7" fill="#F79E1B"/></svg>
+      <svg class="size-8" viewBox="0 0 36 24" fill="none"><rect width="36" height="24" rx="3" fill="#1434CB"/><text x="4" y="16" fill="white" font-size="7" font-weight="bold">MC</text></svg>
+      <span class="text-xs">Secure checkout</span>
+    </div>
+  </div>
+</main>
+</Layout>
