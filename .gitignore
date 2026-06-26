@@ -34,3 +34,4 @@ drizzle/
 # temp files
 hello.ts
 strong-satellite/
+.env.development.local
