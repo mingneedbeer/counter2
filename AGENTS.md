@@ -46,4 +46,4 @@ This is a compact guide for future sessions in the `counter2` repository.
 5. **Get Token**: `turso db tokens create counter2`
 6. **Run migrations locally first**: `bunx drizzle-kit migrate`
 7. **Push schema to Turso**: `bunx drizzle-kit push` (or use `bunx drizzle-kit migrate`)
-8. **Set Vercel env vars**: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `APP_URL`, `JWT_SECRET`
+8. **Set Vercel env vars**: `TURSO_DATABASE_VERCEL_TURSO_DATABASE_URL`, `TURSO_DATABASE_VERCEL_TURSO_AUTH_TOKEN`, `APP_URL`, `JWT_SECRET`

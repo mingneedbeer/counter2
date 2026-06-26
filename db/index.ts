@@ -2,12 +2,12 @@ import * as schema from "./schema";
 
 let _db: any;
 
-if (process.env.TURSO_DATABASE_URL) {
+if (process.env.TURSO_DATABASE_VERCEL_TURSO_DATABASE_URL) {
   const { createClient } = await import("@libsql/client");
   const { drizzle } = await import("drizzle-orm/libsql");
   const client = createClient({
-    url: process.env.TURSO_DATABASE_URL,
-    authToken: process.env.TURSO_AUTH_TOKEN,
+    url: process.env.TURSO_DATABASE_VERCEL_TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_DATABASE_VERCEL_TURSO_AUTH_TOKEN,
   });
   _db = drizzle(client, { schema });
 } else {
