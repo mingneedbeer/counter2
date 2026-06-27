@@ -2,6 +2,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
+    "prebuild": "node db/migrate.mjs",
     "build": "astro build",
     "preview": "astro preview"
   },
