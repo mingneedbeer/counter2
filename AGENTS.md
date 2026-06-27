@@ -21,6 +21,7 @@ This is a compact guide for future sessions in the `counter2` repository.
 - **Password hashing**: Use `bcryptjs` (pure JS), NOT `Bun.password.hash()` (Bun-only).
 - **Database Schema**: `db/schema.ts` is the Drizzle schema. `db/index.ts` is the connection with `@libsql/client`.
 - **Configuration**: `drizzle.config.ts` is the source of truth for database migrations. Uses `dialect: 'sqlite'` with `dbCredentials.url` pointing to `sqlite.db`.
+- **Google Analytics**: Add `PUBLIC_GA_MEASUREMENT_ID` env var to enable GA4 in `src/layouts/Layout.astro`.
 - **Astro/React**: Components are in `src/components`. Pages are in `src/pages`.
 
 ## Important Gotchas
