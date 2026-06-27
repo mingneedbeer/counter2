@@ -45,6 +45,12 @@ const gaId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
   <main>
     <slot />
   </main>
+  <footer class="border-t border-gray-200 py-6 text-center text-sm text-gray-500">
+    <div class="space-x-4">
+      <a href="/terms" class="hover:text-gray-900 transition">Terms</a>
+      <a href="/privacy" class="hover:text-gray-900 transition">Privacy</a>
+    </div>
+  </footer>
   <CookieConsent gaId={gaId} client:only="react" />
 </body>
 </html>
