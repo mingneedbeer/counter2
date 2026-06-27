@@ -9,16 +9,17 @@ const gaId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI-Enable</title>
+  <meta name="ga-id" content={import.meta.env.PUBLIC_GA_MEASUREMENT_ID} />
 {
-  gaId && (
+  import.meta.env.PUBLIC_GA_MEASUREMENT_ID && (
     <>
-      <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}></script>
+      <script async src={`https://www.googletagmanager.com/gtag/js?id=${import.meta.env.PUBLIC_GA_MEASUREMENT_ID}`}></script>
       <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('consent', 'default', { analytics_storage: 'denied' });
         gtag('js', new Date());
-        gtag('config', gaId);
+        gtag('config', import.meta.env.PUBLIC_GA_MEASUREMENT_ID);
       </script>
     </>
   )

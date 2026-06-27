@@ -12,6 +12,21 @@ const verified = Astro.url.searchParams.get("verified");
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sign In · AI-Enable</title>
+  <meta name="ga-id" content={import.meta.env.PUBLIC_GA_MEASUREMENT_ID} />
+{
+  import.meta.env.PUBLIC_GA_MEASUREMENT_ID && (
+    <>
+      <script async src={`https://www.googletagmanager.com/gtag/js?id=${import.meta.env.PUBLIC_GA_MEASUREMENT_ID}`}></script>
+      <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('consent', 'default', { analytics_storage: 'denied' });
+        gtag('js', new Date());
+        gtag('config', import.meta.env.PUBLIC_GA_MEASUREMENT_ID);
+      </script>
+    </>
+  )
+}
 </head>
 <body class="h-full">
   <main class="w-full h-full grid lg:grid-cols-[1fr_28rem] xl:grid-cols-[1fr_32rem]">
