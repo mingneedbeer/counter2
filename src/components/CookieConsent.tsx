@@ -8,14 +8,14 @@ export default function CookieConsent({ gaId }: { gaId?: string }) {
     if (!consent) {
       setShow(true);
     } else if (consent === "accepted" && gaId) {
-      loadGA(gaId);
+      grantConsent();
     }
   }, [gaId]);
 
   const accept = () => {
     localStorage.setItem("cookie-consent", "accepted");
     setShow(false);
-    if (gaId) loadGA(gaId);
+    if (gaId) grantConsent();
   };
 
   const reject = () => {
@@ -50,21 +50,8 @@ export default function CookieConsent({ gaId }: { gaId?: string }) {
   );
 }
 
-function loadGA(id: string) {
-  if (document.querySelector(`script[data-ga="${id}"]`)) return;
-
-  const s = document.createElement("script");
-  s.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
-  s.async = true;
-  s.setAttribute("data-ga", id);
-  document.head.appendChild(s);
-
-  const inline = document.createElement("script");
-  inline.textContent = `
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', '${id}');
-  `;
-  document.head.appendChild(inline);
+function grantConsent() {
+  window.gtag?.("consent", "update", {
+    analytics_storage: "granted",
+  });
 }
