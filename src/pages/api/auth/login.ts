@@ -37,6 +37,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
+  if (!user.verified) {
+    return new Response(JSON.stringify({ error: "Please verify your email before logging in" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const token = signToken({ userId: user.id, email: user.email, verified: user.verified });
   cookies.set("token", token, {
     path: "/",
