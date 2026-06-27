@@ -19,7 +19,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
-  const [user] = await db.select().from(users).where(eq(users.email, email));
+  let user;
+  try {
+    [user] = await db.select().from(users).where(eq(users.email, email));
+  } catch (e) {
+    console.error("DB query error:", e instanceof Error ? e.message : e, e instanceof Error && e.cause ? String(e.cause) : "");
+    return new Response(JSON.stringify({ error: "Database error", detail: e instanceof Error ? e.message : String(e) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   if (!user || !compareSync(password, user.passwordHash)) {
     return new Response(JSON.stringify({ error: "Invalid email or password" }), {
