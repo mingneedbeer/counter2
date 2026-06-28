@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import CookieConsent from '../components/CookieConsent';
 const gaId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
+const user = Astro.props.user;
 ---
 <!DOCTYPE html>
 <html lang="en" data-theme="corporate">
@@ -33,8 +34,18 @@ const gaId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
       </a>
     </div>
     <div class="navbar-end gap-2">
-      <a href="/login" class="btn btn-ghost btn-sm">Login</a>
-      <a href="/register" class="btn btn-primary btn-sm">Register</a>
+      {user ? (
+        <>
+          <a href="/dashboard" class="btn btn-ghost btn-sm">Dashboard</a>
+          <span class="text-xs text-base-content/50 hidden sm:inline">{user.email}</span>
+          <a href="/api/auth/logout" class="btn btn-outline btn-error btn-sm">Logout</a>
+        </>
+      ) : (
+        <>
+          <a href="/login" class="btn btn-ghost btn-sm">Login</a>
+          <a href="/register" class="btn btn-primary btn-sm">Register</a>
+        </>
+      )}
       <label class="swap swap-rotate btn btn-ghost btn-sm btn-circle">
         <input type="checkbox" class="theme-controller" value="dark" />
         <svg class="swap-on size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
