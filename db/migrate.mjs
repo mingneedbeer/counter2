@@ -1,7 +1,7 @@
 import { createClient } from "@libsql/client";
 
-const url = process.env.TURSO_DATABASE_VERCEL_TURSO_DATABASE_URL;
-const authToken = process.env.TURSO_DATABASE_VERCEL_TURSO_AUTH_TOKEN;
+const url = process.env.TURSO_DATABASE_URL || process.env.TURSO_DATABASE_VERCEL_TURSO_DATABASE_URL;
+const authToken = process.env.TURSO_AUTH_TOKEN || process.env.TURSO_DATABASE_VERCEL_TURSO_AUTH_TOKEN;
 
 if (!url || !authToken) {
   console.log("Skipping migration: no Turso env vars");

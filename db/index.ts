@@ -2,15 +2,16 @@ import * as schema from "./schema";
 
 let _db: any;
 
-const url = process.env.TURSO_DATABASE_VERCEL_TURSO_DATABASE_URL;
-const authToken = process.env.TURSO_DATABASE_VERCEL_TURSO_AUTH_TOKEN;
+// Prefer persistent database env vars, fall back to Vercel-Turso integration vars
+const url = process.env.TURSO_DATABASE_URL || process.env.TURSO_DATABASE_VERCEL_TURSO_DATABASE_URL;
+const authToken = process.env.TURSO_AUTH_TOKEN || process.env.TURSO_DATABASE_VERCEL_TURSO_AUTH_TOKEN;
 
 if (url && authToken) {
   const { createClient } = await import("@libsql/client");
   const { drizzle } = await import("drizzle-orm/libsql");
   const client = createClient({
-    url: process.env.TURSO_DATABASE_VERCEL_TURSO_DATABASE_URL,
-    authToken: process.env.TURSO_DATABASE_VERCEL_TURSO_AUTH_TOKEN,
+    url,
+    authToken,
   });
   _db = drizzle(client, { schema });
 } else {
