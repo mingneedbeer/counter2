@@ -4,6 +4,7 @@
   "workspaces": {
     "": {
       "dependencies": {
+        "@abstract-foundation/agw-client": "^1.12.3",
         "@astrojs/react": "^5.0.7",
         "@astrojs/tailwind": "^6.0.2",
         "@astrojs/vercel": "^10.0.8",
@@ -33,6 +34,8 @@
     },
   },
   "packages": {
+    "@abstract-foundation/agw-client": ["@abstract-foundation/agw-client@1.12.3", "", { "peerDependencies": { "typescript": ">=5.0.4", "viem": "^2.37.0" }, "optionalPeers": ["typescript"] }, "sha512-sTNO0stpFqrd5M79TYFQmN2ja6P2o5boliwkfeCPIhc8A5NVemBTMDyXCxwRsaE05MNr1eOfyvEXF6caqz5msw=="],
+
     "@adraffy/ens-normalize": ["@adraffy/ens-normalize@1.11.1", "", {}, "sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ=="],
 
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],

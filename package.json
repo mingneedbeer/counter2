@@ -8,6 +8,7 @@
     "preview": "astro preview"
   },
   "dependencies": {
+    "@abstract-foundation/agw-client": "^1.12.3",
     "@astrojs/react": "^5.0.7",
     "@astrojs/tailwind": "^6.0.2",
     "@astrojs/vercel": "^10.0.8",

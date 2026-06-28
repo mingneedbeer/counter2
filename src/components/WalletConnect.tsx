@@ -1,53 +1,63 @@
-import { useState, useEffect, useCallback } from "react";
-import { createPublicClient, createWalletClient, custom, http, formatEther, defineChain } from "viem";
-import { mainnet } from "viem/chains";
+import { useState, useEffect } from "react";
+import { createPublicClient, createWalletClient, custom, http, formatEther } from "viem";
+import { toAccount } from "viem/accounts";
+import { abstractTestnet, abstract } from "viem/chains";
+import { createAbstractClient, getSmartAccountAddressFromInitialSigner, deployAccount } from "@abstract-foundation/agw-client";
+import type { Address, Hex } from "viem";
 
-const abstractTestnet = defineChain({
-  id: 11124,
-  name: "Abstract Testnet",
-  nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: ["https://api.testnet.abs.xyz"] } },
-  blockExplorers: { default: { name: "Explorer", url: "https://explorer.testnet.abs.xyz" } },
-});
+const checkIsDeployed = (publicClient: ReturnType<typeof createPublicClient>, address: Address) =>
+  publicClient.getCode({ address }).then((code) => code !== "0x" && code !== undefined);
 
 type WalletState = {
-  address: `0x${string}`;
-  balance: string;
+  eoa: `0x${string}`;
+  aaAddress: `0x${string}`;
+  eoaBalance: string;
+  aaBalance: string;
+  isDeployed: boolean;
   chainId: number;
 };
 
 export default function WalletConnect() {
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [loading, setLoading] = useState(false);
-  const [chain, setChain] = useState<"eth" | "abstract">("eth");
+  const [chain, setChain] = useState<"abstract_testnet" | "abstract">("abstract_testnet");
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+
+  const targetChain = chain === "abstract" ? abstract : abstractTestnet;
 
   const showToast = (type: string, message: string) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 4000);
   };
 
-  const getClients = useCallback(async (addr: `0x${string}`, ch: typeof mainnet | typeof abstractTestnet) => {
-    const publicClient = createPublicClient({
-      chain: ch,
-      transport: http(),
-    });
-    const balance = await publicClient.getBalance({ address: addr });
-    return { balance: formatEther(balance), publicClient };
-  }, []);
+  const getPublicClient = () =>
+    createPublicClient({ chain: targetChain, transport: http() });
 
   const connect = async () => {
     if (!window.ethereum) {
-      showToast("error", "No wallet found. Install MetaMask.");
+      showToast("error", "No wallet found. Install MetaMask or Rabby.");
       return;
     }
     setLoading(true);
     try {
-      const [addr] = await window.ethereum.request({ method: "eth_requestAccounts" }) as [`0x${string}`];
-      const targetChain = chain === "abstract" ? abstractTestnet : mainnet;
-      const { balance } = await getClients(addr, targetChain);
+      const [eoa] = await window.ethereum.request({ method: "eth_requestAccounts" }) as [`0x${string}`];
+      const targetChainId = chain === "abstract" ? "0xab5" : "0x2b74"; // 2741, 11124
+      try {
+        await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: targetChainId }] });
+      } catch {
+        await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: targetChainId, chainName: targetChain.name, rpcUrls: targetChain.rpcUrls.default.http, nativeCurrency: targetChain.nativeCurrency }] });
+      }
+
+      const publicClient = getPublicClient();
+      const aaAddress = await getSmartAccountAddressFromInitialSigner(eoa, publicClient);
+      const [eoaBalance, aaBalance, isDeployed] = await Promise.all([
+        publicClient.getBalance({ address: eoa }),
+        publicClient.getBalance({ address: aaAddress }),
+        checkIsDeployed(publicClient, aaAddress),
+      ]);
       const chainId = await window.ethereum.request({ method: "eth_chainId" }) as string;
-      setWallet({ address: addr, balance, chainId: parseInt(chainId) });
+      setWallet({ eoa, aaAddress, eoaBalance: formatEther(eoaBalance), aaBalance: formatEther(aaBalance), isDeployed, chainId: parseInt(chainId) });
     } catch (e) {
       showToast("error", e instanceof Error ? e.message : "Connection failed");
     } finally {
@@ -57,32 +67,87 @@ export default function WalletConnect() {
 
   const disconnect = () => {
     setWallet(null);
+    setTxHash(null);
   };
 
-  const switchChain = async (target: "eth" | "abstract") => {
-    setChain(target);
+  const switchChain = async (c: "abstract_testnet" | "abstract") => {
+    setChain(c);
     if (!wallet) return;
-    const params = target === "abstract"
-      ? { chainId: "0x2b74", chainName: "Abstract Testnet", rpcUrls: ["https://api.testnet.abs.xyz"], nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 } }
-      : { chainId: "0x1", chainName: "Ethereum Mainnet", rpcUrls: ["https://cloudflare-eth.com"] };
+    const target = c === "abstract" ? abstract : abstractTestnet;
+    const targetChainId = c === "abstract" ? "0xab5" : "0x2b74";
     try {
-      await window.ethereum!.request({ method: "wallet_switchEthereumChain", params: [{ chainId: params.chainId }] });
+      await window.ethereum!.request({ method: "wallet_switchEthereumChain", params: [{ chainId: targetChainId }] });
     } catch {
-      await window.ethereum!.request({ method: "wallet_addEthereumChain", params: [params] });
+      await window.ethereum!.request({ method: "wallet_addEthereumChain", params: [{ chainId: targetChainId, chainName: target.name, rpcUrls: target.rpcUrls.default.http, nativeCurrency: target.nativeCurrency }] });
     }
-    const targetChain = target === "abstract" ? abstractTestnet : mainnet;
-    const { balance } = await getClients(wallet.address, targetChain);
-    setWallet({ ...wallet, balance });
+    const publicClient = createPublicClient({ chain: target, transport: http() });
+    const aaAddress = await getSmartAccountAddressFromInitialSigner(wallet.eoa, publicClient);
+    const [eoaBalance, aaBalance, isDeployed] = await Promise.all([
+      publicClient.getBalance({ address: wallet.eoa }),
+      publicClient.getBalance({ address: aaAddress }),
+      checkIsDeployed(publicClient, aaAddress),
+    ]);
+    setWallet({ ...wallet, aaAddress, eoaBalance: formatEther(eoaBalance), aaBalance: formatEther(aaBalance), isDeployed });
   };
 
-  const signMessage = async () => {
+  const deploy = async () => {
     if (!wallet) return;
+    setLoading(true);
     try {
-      const walletClient = createWalletClient({ account: wallet.address, chain: mainnet, transport: custom(window.ethereum!) });
-      const signature = await walletClient.signMessage({ message: "Hello from AI-Enable!" });
-      showToast("success", `Signed: ${signature.slice(0, 20)}...`);
+      const walletClient = createWalletClient({ chain: targetChain, transport: custom(window.ethereum!) });
+      const publicClient = getPublicClient();
+      const signer = toAccount({
+        address: wallet.eoa,
+        async signMessage({ message }) {
+          return walletClient.signMessage({ account: wallet.eoa, message }) as Promise<`0x${string}`>;
+        },
+        async signTypedData(typedData) {
+          const { domain, types, message, primaryType } = typedData as any;
+          return walletClient.signTypedData({ account: wallet.eoa, domain, types, message, primaryType }) as Promise<`0x${string}`>;
+        },
+      });
+      const result = await deployAccount({ walletClient, publicClient, initialSignerAddress: wallet.eoa });
+      showToast("success", `Account deployed! Tx: ${result.deploymentTransaction?.slice(0, 20)}...`);
+      setWallet({ ...wallet, isDeployed: true });
     } catch (e) {
-      showToast("error", e instanceof Error ? e.message : "Signing failed");
+      showToast("error", e instanceof Error ? e.message : "Deploy failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendDemoTx = async () => {
+    if (!wallet) return;
+    setLoading(true);
+    try {
+      const walletClient = createWalletClient({ chain: targetChain, transport: custom(window.ethereum!) });
+      const signer = toAccount({
+        address: wallet.eoa,
+        async signMessage({ message }) {
+          return walletClient.signMessage({ account: wallet.eoa, message }) as Promise<`0x${string}`>;
+        },
+        async signTypedData(typedData) {
+          const { domain, types, message, primaryType } = typedData as any;
+          return walletClient.signTypedData({ account: wallet.eoa, domain, types, message, primaryType }) as Promise<`0x${string}`>;
+        },
+      });
+      const abstractClient = await createAbstractClient({
+        signer,
+        chain: targetChain,
+        transport: custom(window.ethereum!),
+      });
+      const hash = await abstractClient.sendCalls({
+        calls: [{ to: wallet.eoa, value: 0n, data: "0x" }],
+      });
+      setTxHash(hash);
+      showToast("success", `Demo UserOp sent!`);
+      const publicClient = getPublicClient();
+      const aaBalance = await publicClient.getBalance({ address: wallet.aaAddress });
+      setWallet({ ...wallet, aaBalance: formatEther(aaBalance) });
+    } catch (e) {
+      showToast("error", e instanceof Error ? e.message : "Transaction failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -94,7 +159,7 @@ export default function WalletConnect() {
     };
     window.ethereum.on("accountsChanged", handleAccountsChanged);
     return () => { window.ethereum?.removeListener("accountsChanged", handleAccountsChanged); };
-  }, [connect]);
+  }, []);
 
   return (
     <div>
@@ -110,26 +175,46 @@ export default function WalletConnect() {
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-mono text-base-content/70">{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+            <span className="text-xs font-mono text-base-content/50">EOA</span>
             <button onClick={disconnect} className="btn btn-ghost btn-xs text-error">Disconnect</button>
           </div>
+          <div className="font-mono text-sm truncate">{wallet.eoa}</div>
+          <div className="text-xs text-base-content/50">Balance: <span className="font-mono">{wallet.eoaBalance} ETH</span></div>
 
-          <div className="flex justify-between items-center py-2 px-3 bg-base-200 rounded-box">
-            <span className="text-sm text-base-content/60">Balance</span>
-            <span className="text-sm font-semibold font-mono">{wallet.balance} ETH</span>
+          <div className="border-t pt-3 mt-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono text-primary font-semibold">Abstract Account (AA)</span>
+              {!wallet.isDeployed && <span className="badge badge-outline badge-xs">counterfactual</span>}
+              {wallet.isDeployed && <span className="badge badge-success badge-xs">deployed</span>}
+            </div>
+            <div className="font-mono text-sm truncate mt-1">{wallet.aaAddress}</div>
+            <div className="text-xs text-base-content/50">Balance: <span className="font-mono">{wallet.aaBalance} ETH</span></div>
           </div>
 
           <div className="flex justify-between items-center py-2 px-3 bg-base-200 rounded-box">
             <span className="text-sm text-base-content/60">Network</span>
             <div className="flex gap-1">
-              <button onClick={() => switchChain("eth")} className={`btn btn-xs ${chain === "eth" ? "btn-primary" : "btn-ghost"}`}>Ethereum</button>
-              <button onClick={() => switchChain("abstract")} className={`btn btn-xs ${chain === "abstract" ? "btn-primary" : "btn-ghost"}`}>Abstract</button>
+              <button onClick={() => switchChain("abstract_testnet")} className={`btn btn-xs ${chain === "abstract_testnet" ? "btn-primary" : "btn-ghost"}`}>Testnet</button>
+              <button onClick={() => switchChain("abstract")} className={`btn btn-xs ${chain === "abstract" ? "btn-primary" : "btn-ghost"}`}>Mainnet</button>
             </div>
           </div>
 
-          <button onClick={signMessage} className="btn btn-outline btn-sm w-full">
-            Sign Message (Demo)
-          </button>
+          <div className="flex gap-2">
+            {!wallet.isDeployed && (
+              <button onClick={deploy} disabled={loading} className="btn btn-outline btn-sm flex-1">
+                {loading ? "Deploying..." : "Deploy Account"}
+              </button>
+            )}
+            <button onClick={sendDemoTx} disabled={loading || !wallet.isDeployed} className="btn btn-outline btn-sm flex-1">
+              {loading ? "Sending..." : "Demo UserOp"}
+            </button>
+          </div>
+
+          {txHash && (
+            <div className="text-xs text-base-content/50 truncate">
+              Last tx: <span className="font-mono">{txHash.slice(0, 10)}...{txHash.slice(-6)}</span>
+            </div>
+          )}
         </div>
       )}
 
