@@ -25,7 +25,8 @@
     "jsonwebtoken": "^9.0.3",
     "postcss": "^8.5.15",
     "resend": "^6.12.4",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "viem": "^2.53.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
