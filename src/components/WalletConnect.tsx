@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { createPublicClient, createWalletClient, custom, http, formatEther, parseEther } from "viem";
+import { createPublicClient, createWalletClient, custom, http, formatEther, parseEther, encodeFunctionData } from "viem";
 import { toAccount } from "viem/accounts";
 import { abstractTestnet, abstract } from "viem/chains";
 import { encodeDeployData, sendEip712Transaction } from "viem/zksync";
@@ -26,6 +26,10 @@ export default function WalletConnect() {
   const [chain, setChain] = useState<"abstract_testnet" | "abstract">("abstract_testnet");
   const [txLog, setTxLog] = useState<TxRecord[]>([]);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+  const [tokenAddress, setTokenAddress] = useState<Address | null>(() => localStorage.getItem(`tokenAddress_abstract_testnet`) as Address | null);
+  const [tokenBalance, setTokenBalance] = useState("0");
+  const [transferTo, setTransferTo] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const targetChain = chain === "abstract" ? abstract : abstractTestnet;
@@ -66,6 +70,36 @@ export default function WalletConnect() {
     const id = setInterval(refreshBalances, 15000);
     return () => clearInterval(id);
   }, [wallet?.eoa]);
+
+  const loadTokenBalance = async () => {
+    if (!wallet || !tokenAddress) return;
+    try {
+      const publicClient = getPublicClient();
+      const balance = await publicClient.readContract({
+        address: tokenAddress,
+        abi: TOKEN_ABI,
+        functionName: "balanceOf",
+        args: [wallet.aaAddress],
+      });
+      setTokenBalance(formatEther(balance as bigint));
+    } catch {
+      setTokenBalance("0");
+    }
+  };
+
+  useEffect(() => {
+    if (!wallet || !tokenAddress) return;
+    loadTokenBalance();
+    const id = setInterval(loadTokenBalance, 15000);
+    return () => clearInterval(id);
+  }, [wallet?.aaAddress, tokenAddress]);
+
+  useEffect(() => {
+    const key = `tokenAddress_${chain}`;
+    setTokenAddress(localStorage.getItem(key) as Address | null);
+    setTransferTo("");
+    setTransferAmount("");
+  }, [chain]);
 
   const getPublicClient = () =>
     createPublicClient({ chain: targetChain, transport: http() });
@@ -205,14 +239,56 @@ export default function WalletConnect() {
       try {
         updateLastTxLog({ message: "Token deployment submitted — waiting for confirmation..." });
         const publicClient = getPublicClient();
-        await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}`, timeout: 60000 });
-        updateLastTxLog({ message: "Token deployed! 1,000 AIE minted to AA account" });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}`, timeout: 60000 });
+        if (receipt.contractAddress) {
+          const key = `tokenAddress_${chain}`;
+          setTokenAddress(receipt.contractAddress);
+          localStorage.setItem(key, receipt.contractAddress);
+          updateLastTxLog({ message: `Token deployed at ${receipt.contractAddress}` });
+          await loadTokenBalance();
+        } else {
+          updateLastTxLog({ message: "Token deployed! 1,000 AIE minted to AA account" });
+        }
         await refreshBalances();
       } catch {
         updateLastTxLog({ message: "Token deployment submitted (confirmation timeout — check explorer)" });
       }
     } catch (e) {
       updateLastTxLog({ status: "failed", message: e instanceof Error ? e.message : "Token deployment failed" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const transferToken = async () => {
+    if (!wallet || !tokenAddress || !transferTo || !transferAmount) return;
+    setLoading(true);
+    addTxLog({ action: "Transfer", hash: "", status: "pending", message: "Signing token transfer in MetaMask..." });
+    try {
+      const abstractClient = await getAbstractClient();
+      const data = encodeFunctionData({
+        abi: TOKEN_ABI,
+        functionName: "transfer",
+        args: [transferTo as Address, parseEther(transferAmount)],
+      });
+      updateLastTxLog({ message: "Submitting transfer UserOp to Abstract bundler..." });
+      const result = await abstractClient.sendCalls({
+        calls: [{ to: tokenAddress, data, value: 0n }],
+      });
+      const hash = result.id;
+      updateLastTxLog({ hash, status: "success", message: "Transfer UserOp submitted to bundler" });
+      try {
+        updateLastTxLog({ message: "Waiting for transfer confirmation..." });
+        const publicClient = getPublicClient();
+        await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}`, timeout: 30000 });
+        updateLastTxLog({ message: "Token transfer confirmed!" });
+        await loadTokenBalance();
+        await refreshBalances();
+      } catch {
+        updateLastTxLog({ message: "Transfer submitted (confirmation timeout — check explorer)" });
+      }
+    } catch (e) {
+      updateLastTxLog({ status: "failed", message: e instanceof Error ? e.message : "Transfer failed" });
     } finally {
       setLoading(false);
     }
@@ -225,6 +301,9 @@ export default function WalletConnect() {
       else connect();
     };
     window.ethereum.on("accountsChanged", handleAccountsChanged);
+    window.ethereum.request({ method: "eth_accounts" }).then((accounts: any) => {
+      if (accounts?.length > 0) connect();
+    });
     return () => { window.ethereum?.removeListener("accountsChanged", handleAccountsChanged); };
   }, []);
 
@@ -314,10 +393,50 @@ export default function WalletConnect() {
             <button onClick={sendDemoTx} disabled={loading || !wallet.isDeployed} className="btn btn-outline btn-sm flex-1">
               {loading ? "Sending..." : "Demo UserOp"}
             </button>
-            <button onClick={deployToken} disabled={loading || !wallet.isDeployed} className="btn btn-outline btn-sm flex-1">
+          </div>
+
+          {tokenAddress ? (
+            <div className="border rounded-box p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono text-secondary font-semibold">AI-Enable Token (AIE)</span>
+              </div>
+              <div className="font-mono text-xs truncate">
+                Contract:{" "}
+                <a href={`${explorerUrl}/address/${tokenAddress}`} target="_blank" rel="noopener noreferrer" className="underline">
+                  {tokenAddress.slice(0, 14)}...{tokenAddress.slice(-8)}
+                </a>
+              </div>
+              <div className="text-xs text-base-content/50">
+                Balance: <span className="font-mono font-semibold text-base-content">{tokenBalance} AIE</span>
+              </div>
+              <div className="border-t pt-2 space-y-2">
+                <span className="text-xs font-semibold">Transfer AIE</span>
+                <input
+                  type="text"
+                  placeholder="Recipient address"
+                  value={transferTo}
+                  onChange={(e) => setTransferTo(e.target.value)}
+                  className="input input-bordered input-xs w-full font-mono"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Amount"
+                    value={transferAmount}
+                    onChange={(e) => setTransferAmount(e.target.value)}
+                    className="input input-bordered input-xs flex-1 font-mono"
+                  />
+                  <button onClick={transferToken} disabled={loading || !wallet.isDeployed} className="btn btn-primary btn-sm">
+                    {loading ? "Sending..." : "Transfer"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button onClick={deployToken} disabled={loading || !wallet.isDeployed} className="btn btn-outline btn-sm w-full">
               {loading ? "Deploying..." : "Create Token"}
             </button>
-          </div>
+          )}
 
           {txLog.length > 0 && (
             <div className="border rounded-lg divide-y text-xs max-h-48 overflow-y-auto">
