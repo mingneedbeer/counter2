@@ -26,7 +26,10 @@ export default function WalletConnect() {
   const [chain, setChain] = useState<"abstract_testnet" | "abstract">("abstract_testnet");
   const [txLog, setTxLog] = useState<TxRecord[]>([]);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
-  const [tokenAddress, setTokenAddress] = useState<Address | null>(() => localStorage.getItem(`tokenAddress_abstract_testnet`) as Address | null);
+  const [tokenAddress, setTokenAddress] = useState<Address | null>(() => {
+    try { return localStorage.getItem(`tokenAddress_abstract_testnet`) as Address | null; }
+    catch { return null; }
+  });
   const [tokenBalance, setTokenBalance] = useState("0");
   const [transferTo, setTransferTo] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
@@ -96,7 +99,8 @@ export default function WalletConnect() {
 
   useEffect(() => {
     const key = `tokenAddress_${chain}`;
-    setTokenAddress(localStorage.getItem(key) as Address | null);
+    try { setTokenAddress(localStorage.getItem(key) as Address | null); }
+    catch { setTokenAddress(null); }
     setTransferTo("");
     setTransferAmount("");
   }, [chain]);
@@ -243,7 +247,7 @@ export default function WalletConnect() {
         if (receipt.contractAddress) {
           const key = `tokenAddress_${chain}`;
           setTokenAddress(receipt.contractAddress);
-          localStorage.setItem(key, receipt.contractAddress);
+          try { localStorage.setItem(key, receipt.contractAddress); } catch {}
           updateLastTxLog({ message: `Token deployed at ${receipt.contractAddress}` });
           await loadTokenBalance();
         } else {
