@@ -1,0 +1,132 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { verifyToken } from '../lib/auth';
+
+export const prerender = false;
+
+const token = Astro.cookies.get("token")?.value;
+const payload = token ? verifyToken(token) : null;
+
+if (!payload || !payload.isAdmin) {
+  return Astro.redirect("/dashboard");
+}
+---
+
+<Layout user={payload}>
+<div class="min-h-[calc(100vh-4rem)] flex items-start justify-center px-4 py-8">
+  <div class="w-full max-w-5xl space-y-6">
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h2 class="card-title text-2xl">Admin Panel</h2>
+        <p class="text-sm text-base-content/60">Manage users and passkey credentials</p>
+      </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h3 class="font-semibold flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+          Users
+        </h3>
+        <div class="overflow-x-auto mt-3">
+          <table class="table table-xs" id="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Verified</th>
+                <th>Admin</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-body">
+              <tr><td colspan="6" class="text-center text-base-content/40">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h3 class="font-semibold flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+          Passkey Credentials
+        </h3>
+        <div class="overflow-x-auto mt-3">
+          <table class="table table-xs" id="creds-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Credential ID</th>
+                <th>Counter</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="creds-body">
+              <tr><td colspan="6" class="text-center text-base-content/40">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function loadUsers() {
+  const res = await fetch("/api/admin/users");
+  const users = await res.json();
+  const tbody = document.getElementById("users-body");
+  tbody.innerHTML = users.map(u => `<tr>
+    <td>${u.id}</td>
+    <td class="font-mono text-xs">${u.email}</td>
+    <td><input type="checkbox" ${u.verified ? "checked" : ""} onchange="toggleVerified(${u.id}, this.checked)" class="checkbox checkbox-xs" /></td>
+    <td><input type="checkbox" ${u.isAdmin ? "checked" : ""} onchange="toggleAdmin(${u.id}, this.checked)" class="checkbox checkbox-xs" /></td>
+    <td class="text-xs">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "-"}</td>
+    <td><button onclick="deleteUser(${u.id})" class="btn btn-ghost btn-xs text-error">Delete</button></td>
+  </tr>`).join("");
+}
+
+async function loadCreds() {
+  const res = await fetch("/api/admin/credentials");
+  const creds = await res.json();
+  const tbody = document.getElementById("creds-body");
+  tbody.innerHTML = creds.map(c => `<tr>
+    <td>${c.id}</td>
+    <td class="font-mono text-xs">${c.userEmail || "?"}</td>
+    <td class="font-mono text-xs max-w-[200px] truncate" title="${c.credentialId}">${c.credentialId.slice(0, 30)}...</td>
+    <td>${c.counter}</td>
+    <td class="text-xs">${c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "-"}</td>
+    <td><button onclick="deleteCred(${c.id})" class="btn btn-ghost btn-xs text-error">Delete</button></td>
+  </tr>`).join("");
+}
+
+async function toggleVerified(id, checked) {
+  await fetch("/api/admin/users", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, verified: checked ? 1 : 0 }) });
+}
+
+async function toggleAdmin(id, checked) {
+  await fetch("/api/admin/users", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, isAdmin: checked ? 1 : 0 }) });
+}
+
+async function deleteUser(id) {
+  if (!confirm("Delete this user and their credentials?")) return;
+  await fetch(`/api/admin/credentials`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+  await fetch("/api/admin/users", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, email: `deleted-${id}@placeholder`, verified: 0 }) });
+  loadUsers();
+}
+
+async function deleteCred(id) {
+  if (!confirm("Delete this credential?")) return;
+  await fetch("/api/admin/credentials", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+  loadCreds();
+}
+
+loadUsers();
+loadCreds();
+</script>
+</Layout>

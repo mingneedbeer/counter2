@@ -60,7 +60,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       .set({ counter: verification.authenticationInfo.newCounter })
       .where(eq(credentials.id, cred.id));
 
-    const token = signToken({ userId: user.id, email: user.email, verified: user.verified });
+    const token = signToken({ userId: user.id, email: user.email, verified: user.verified, isAdmin: user.isAdmin });
     cookies.set("token", token, {
       path: "/",
       httpOnly: true,

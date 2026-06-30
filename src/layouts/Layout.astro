@@ -37,6 +37,7 @@ const user = Astro.props.user;
       {user ? (
         <>
           <a href="/dashboard" class="btn btn-ghost btn-sm">Dashboard</a>
+          {user.isAdmin ? <a href="/admin" class="btn btn-ghost btn-sm text-warning">Admin</a> : null}
           <span class="text-xs text-base-content/50 hidden sm:inline">{user.email}</span>
           <a href="/api/auth/logout" class="btn btn-outline btn-error btn-sm">Logout</a>
         </>

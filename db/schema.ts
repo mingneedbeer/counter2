@@ -7,6 +7,7 @@ export const users = sqliteTable("users", {
   passwordHash: text("passwordHash").notNull(),
   verified: integer("verified", { mode: "number" }).notNull().default(0),
   verificationToken: text("verificationToken"),
+  isAdmin: integer("isAdmin", { mode: "number" }).notNull().default(0),
   createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
