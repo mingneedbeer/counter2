@@ -2,8 +2,8 @@
 pragma solidity ^0.8.24;
 
 contract AIEnableToken {
-    string public name = "AI-Enable Token";
-    string public symbol = "AIE";
+    string public name;
+    string public symbol;
     uint8 public constant decimals = 18;
     uint256 public totalSupply;
 
@@ -13,7 +13,9 @@ contract AIEnableToken {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
-    constructor(address to, uint256 amount) {
+    constructor(string memory _name, string memory _symbol, address to, uint256 amount) {
+        name = _name;
+        symbol = _symbol;
         totalSupply = amount;
         balanceOf[to] = amount;
         emit Transfer(address(0), to, amount);
