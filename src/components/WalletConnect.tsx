@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { createPublicClient, createWalletClient, custom, http, formatEther, parseEther, encodeFunctionData } from "viem";
+import { createPublicClient, createWalletClient, custom, http, formatEther, parseEther, encodeFunctionData, encodeAbiParameters } from "viem";
 import { toAccount } from "viem/accounts";
 import { abstractTestnet, abstract } from "viem/chains";
 import { encodeDeployData, sendEip712Transaction } from "viem/zksync";
@@ -12,6 +12,53 @@ const TOKEN_BYTECODE_RAW = "0x00080000000000020000008004000039000000400040043f00
 
 const checkIsDeployed = (publicClient: ReturnType<typeof createPublicClient>, address: Address) =>
   publicClient.getCode({ address }).then((code) => code !== "0x" && code !== undefined);
+
+const TOKEN_SOURCE = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract AIEnableToken {
+    string public name;
+    string public symbol;
+    uint8 public constant decimals = 18;
+    uint256 public totalSupply;
+
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    constructor(string memory _name, string memory _symbol, address to, uint256 amount) {
+        name = _name;
+        symbol = _symbol;
+        totalSupply = amount;
+        balanceOf[to] = amount;
+        emit Transfer(address(0), to, amount);
+    }
+
+    function approve(address spender, uint256 value) public returns (bool) {
+        allowance[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
+        return true;
+    }
+
+    function transfer(address to, uint256 value) public returns (bool) {
+        require(balanceOf[msg.sender] >= value, "insufficient balance");
+        balanceOf[msg.sender] -= value;
+        balanceOf[to] += value;
+        emit Transfer(msg.sender, to, value);
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 value) public returns (bool) {
+        require(balanceOf[from] >= value, "insufficient balance");
+        require(allowance[from][msg.sender] >= value, "insufficient allowance");
+        balanceOf[from] -= value;
+        balanceOf[to] += value;
+        allowance[from][msg.sender] -= value;
+        emit Transfer(from, to, value);
+    }
+}`;
 
 type TxRecord = {
   action: string;
@@ -217,6 +264,62 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
 
   const CONTRACT_DEPLOYER_ADDRESS = "0x0000000000000000000000000000000000008006";
 
+  const verifyContract = async (address: Address, _name: string, _symbol: string, to: Address, amount: bigint) => {
+    const verifyUrl = chain === "abstract"
+      ? "https://api-explorer-verify.abs.xyz/contract_verification"
+      : "https://api-explorer-verify.testnet.abs.xyz/contract_verification";
+    const standardJson = {
+      language: "Solidity",
+      sources: {
+        "contracts/AIEnableToken.sol": {
+          content: TOKEN_SOURCE,
+        },
+      },
+      settings: {
+        evmVersion: "paris",
+        optimizer: { enabled: true, mode: "3" },
+        outputSelection: {
+          "*": {
+            "*": ["abi", "evm.methodIdentifiers", "metadata"],
+            "": ["ast"],
+          },
+        },
+        detectMissingLibraries: false,
+        forceEVMLA: false,
+        enableEraVMExtensions: false,
+        libraries: {},
+      },
+    };
+
+    const encodedArgs = encodeAbiParameters(
+      [
+        { type: "string", name: "_name" },
+        { type: "string", name: "_symbol" },
+        { type: "address", name: "to" },
+        { type: "uint256", name: "amount" },
+      ],
+      [_name, _symbol, to, amount]
+    );
+
+    const payload = {
+      contractAddress: address.toLowerCase(),
+      sourceCode: standardJson,
+      codeFormat: "solidity-standard-json-input",
+      contractName: "contracts/AIEnableToken.sol:AIEnableToken",
+      compilerSolcVersion: "zkVM-0.8.24-1.0.2",
+      compilerZksolcVersion: "v1.5.15",
+      constructorArguments: encodedArgs,
+      optimizationUsed: true,
+    };
+
+    const response = await fetch(verifyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return await response.json();
+  };
+
   const deployToken = async () => {
     if (!wallet) return;
     setLoading(true);
@@ -250,8 +353,24 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
           const key = `tokenAddress_${chain}_${wallet.aaAddress}`;
           setTokenAddress(receipt.contractAddress);
           try { localStorage.setItem(key, receipt.contractAddress); } catch {}
-          updateLastTxLog({ message: `Token deployed at ${receipt.contractAddress}` });
+          updateLastTxLog({ message: `Token deployed at ${receipt.contractAddress} — verifying...` });
           await loadTokenBalance();
+          try {
+            const verifyResult = await verifyContract(
+              receipt.contractAddress,
+              `AI-Enable Token (${userEmail || wallet.eoa.slice(0, 6)})`,
+              "AIE",
+              wallet.aaAddress,
+              parseEther("1000")
+            );
+            if (verifyResult?.status === "success" || verifyResult?.id) {
+              updateLastTxLog({ message: `Token deployed and verified! ID: ${verifyResult.id}` });
+            } else {
+              updateLastTxLog({ message: `Token deployed — verification submitted (${verifyResult?.message || JSON.stringify(verifyResult)})` });
+            }
+          } catch (e) {
+            updateLastTxLog({ message: `Token deployed — verification request failed (verify manually)` });
+          }
         } else {
           updateLastTxLog({ message: "Token deployed! 1,000 AIE minted to AA account" });
         }
