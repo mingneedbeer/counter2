@@ -2,7 +2,7 @@
 
 A full-stack web app built entirely with **opencode**
 
-Blockchain wallet integration · Passkey auth · Admin panel · Vercel deployment
+Blockchain wallet integration · Passkey auth · Admin panel · WalletConnect mobile · Vercel deployment
 
 ---
 
@@ -80,9 +80,11 @@ Challenges stored in-memory Map. Credentials linked to user via FK.
 
 # **Blockchain Wallet**
 
-**MetaMask + Abstract Global Wallet (AGW)**
+**MetaMask + Abstract Global Wallet (AGW) + WalletConnect mobile**
 
-1. **Connect** → MetaMask requests accounts → switch to Abstract chain
+Desktop uses the MetaMask browser extension. On iPhone (Safari/Chrome), **WalletConnect** deep-links to the MetaMask app — no browser extension needed.
+
+1. **Connect** → MetaMask (desktop) or WalletConnect modal (mobile) → switch to Abstract chain
 2. **Counterfactual AA** → Compute smart account address without deploying
 3. **Deploy Account** → `deployAccount()` sends tx to on-chain
 4. **Demo UserOp** → Send 0.01 ETH from AA back to EOA
@@ -177,6 +179,7 @@ Every feature was implemented through opencode chat sessions:
 | 8 | zkSync bytecode fix: 0003 format, Hardhat verify setup |
 | 9 | Token verification: auto-verify from browser after deploy |
 | 10 | Admin panel: user/credential management, set-admin API |
+| 11 | WalletConnect mobile: iPhone MetaMask deep link support |
 
 ---
 
@@ -231,6 +234,9 @@ vercel --prod
 
 # Promote admin user
 node db/set-admin.mjs user@email.com
+
+# Set WalletConnect project ID (required for mobile)
+vercel env add PUBLIC_WALLETCONNECT_PROJECT_ID production
 ```
 
 ---
@@ -245,7 +251,7 @@ node db/set-admin.mjs user@email.com
 | **Runtime** | Bun |
 | **Hosting** | Vercel (SSR) |
 | **Auth** | JWT, bcryptjs, WebAuthn, Google OAuth |
-| **Blockchain** | viem, Abstract Global Wallet SDK |
+| **Blockchain** | viem, Abstract Global Wallet SDK, WalletConnect |
 | **Email** | Resend API |
 | **AI Tool** | opencode (opencode.ai) |
 
