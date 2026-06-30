@@ -67,6 +67,15 @@ type TxRecord = {
   message: string;
 };
 
+type WalletState = {
+  eoa: `0x${string}`;
+  aaAddress: `0x${string}`;
+  eoaBalance: string;
+  aaBalance: string;
+  isDeployed: boolean;
+  chainId: number;
+};
+
 export default function WalletConnect({ userEmail }: { userEmail?: string }) {
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,10 +88,20 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
   const [transferAmount, setTransferAmount] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
 
+  const providerRef = useRef<any>(null);
+  const connectRef = useRef<() => Promise<void>>();
+  const intentionallyDisconnected = useRef(false);
+
   const targetChain = chain === "abstract" ? abstract : abstractTestnet;
   const explorerUrl = chain === "abstract"
     ? "https://explorer.abs.xyz"
     : "https://explorer.testnet.abs.xyz";
+
+  const getProvider = () => {
+    const p = providerRef.current;
+    if (!p) throw new Error("Provider not initialized");
+    return p;
+  };
 
   const showToast = (type: string, message: string) => {
     setToast({ type, message });
@@ -153,23 +172,51 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
   const getPublicClient = () =>
     createPublicClient({ chain: targetChain, transport: http() });
 
-  const intentionallyDisconnected = useRef(false);
-
   const connect = async () => {
-    if (!window.ethereum) {
-      showToast("error", "No wallet found. Install MetaMask or Rabby.");
-      return;
-    }
     setLoading(true);
     try {
-      const [eoa] = await window.ethereum.request({ method: "eth_requestAccounts" }) as [`0x${string}`];
-      const targetChainId = chain === "abstract" ? "0xab5" : "0x2b74";
-      try {
-        await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: targetChainId }] });
-      } catch {
-        await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: targetChainId, chainName: targetChain.name, rpcUrls: targetChain.rpcUrls.default.http, nativeCurrency: targetChain.nativeCurrency }] });
+      let provider: any;
+
+      if (typeof window !== "undefined" && window.ethereum) {
+        provider = window.ethereum;
+        const [eoa] = await provider.request({ method: "eth_requestAccounts" }) as [`0x${string}`];
+        const targetChainId = chain === "abstract" ? "0xab5" : "0x2b74";
+        try {
+          await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: targetChainId }] });
+        } catch (e: any) {
+          if (e.code === 4902) {
+            await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: targetChainId, chainName: targetChain.name, rpcUrls: targetChain.rpcUrls.default.http, nativeCurrency: targetChain.nativeCurrency }] });
+          } else {
+            throw e;
+          }
+        }
+      } else {
+        const wcProjectId = import.meta.env.PUBLIC_WALLETCONNECT_PROJECT_ID;
+        if (!wcProjectId) {
+          showToast("error", "No wallet found. Install MetaMask.");
+          setLoading(false);
+          return;
+        }
+        const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
+        const defaultChain = chain === "abstract" ? 2741 : 11124;
+        const optChain = chain === "abstract" ? 11124 : 2741;
+        provider = await EthereumProvider.init({
+          projectId: wcProjectId,
+          chains: [defaultChain],
+          optionalChains: [optChain],
+          showQrModal: true,
+          metadata: {
+            name: "AI-Enable",
+            description: "AI-Enable Token dApp",
+            url: window.location.origin,
+            icons: [],
+          },
+        });
+        await provider.connect();
       }
 
+      providerRef.current = provider;
+      const [eoa] = await provider.request({ method: "eth_requestAccounts" }) as [`0x${string}`];
       const publicClient = getPublicClient();
       const aaAddress = await getSmartAccountAddressFromInitialSigner(eoa, publicClient);
       const [eoaBalance, aaBalance, isDeployed] = await Promise.all([
@@ -177,18 +224,26 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
         publicClient.getBalance({ address: aaAddress }),
         checkIsDeployed(publicClient, aaAddress),
       ]);
-      const chainId = await window.ethereum.request({ method: "eth_chainId" }) as string;
+      const chainId = await provider.request({ method: "eth_chainId" }) as string;
       setWallet({ eoa, aaAddress, eoaBalance: formatEther(eoaBalance), aaBalance: formatEther(aaBalance), isDeployed, chainId: parseInt(chainId) });
       intentionallyDisconnected.current = false;
     } catch (e) {
       showToast("error", e instanceof Error ? e.message : "Connection failed");
+      providerRef.current = null;
     } finally {
       setLoading(false);
     }
   };
 
+  connectRef.current = connect;
+
   const disconnect = () => {
     intentionallyDisconnected.current = true;
+    const p = providerRef.current;
+    if (p && p !== window.ethereum) {
+      try { p.disconnect(); } catch {}
+    }
+    providerRef.current = null;
     setWallet(null);
     setTxLog([]);
   };
@@ -199,10 +254,13 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
     if (!wallet) return;
     const target = c === "abstract" ? abstract : abstractTestnet;
     const targetChainId = c === "abstract" ? "0xab5" : "0x2b74";
+    const provider = getProvider();
     try {
-      await window.ethereum!.request({ method: "wallet_switchEthereumChain", params: [{ chainId: targetChainId }] });
-    } catch {
-      await window.ethereum!.request({ method: "wallet_addEthereumChain", params: [{ chainId: targetChainId, chainName: target.name, rpcUrls: target.rpcUrls.default.http, nativeCurrency: target.nativeCurrency }] });
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: targetChainId }] });
+    } catch (e: any) {
+      if (e.code === 4902) {
+        await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: targetChainId, chainName: target.name, rpcUrls: target.rpcUrls.default.http, nativeCurrency: target.nativeCurrency }] });
+      }
     }
     const publicClient = createPublicClient({ chain: target, transport: http() });
     const aaAddress = await getSmartAccountAddressFromInitialSigner(wallet.eoa, publicClient);
@@ -220,7 +278,7 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
     addTxLog({ action: "Deploy", hash: "", status: "pending", message: "Sending deploy transaction..." });
     try {
       const publicClient = getPublicClient();
-      const walletClient = createWalletClient({ account: wallet.eoa, chain: targetChain, transport: custom(window.ethereum!) });
+      const walletClient = createWalletClient({ account: wallet.eoa, chain: targetChain, transport: custom(getProvider()) });
       const result = await deployAccount({ walletClient, publicClient, initialSignerAddress: wallet.eoa });
       const hash = result.deploymentTransaction ?? "0x";
       updateLastTxLog({ hash, status: "success", message: "Account deployed" });
@@ -333,7 +391,7 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
       const deployerWallet = createWalletClient({
         account: wallet.eoa,
         chain: targetChain,
-        transport: custom(window.ethereum!),
+        transport: custom(getProvider()),
       });
       updateLastTxLog({ message: "Deploying AI-Enable Token contract from EOA..." });
       const hash = await sendEip712Transaction(deployerWallet, {
@@ -419,7 +477,6 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
     }
   };
 
-  const connectRef = useRef(connect);
   connectRef.current = connect;
 
   useEffect(() => {
@@ -445,7 +502,8 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
   }, [txLog]);
 
   const getAbstractClient = async () => {
-    const txClient = createWalletClient({ chain: targetChain, transport: custom(window.ethereum!) });
+    const provider = getProvider();
+    const txClient = createWalletClient({ chain: targetChain, transport: custom(provider) });
     const signer = toAccount({
       address: wallet!.eoa,
       async signMessage({ message }) {
@@ -459,7 +517,7 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
     return createAbstractClient({
       signer,
       chain: targetChain,
-      transport: custom(window.ethereum!),
+      transport: custom(provider),
     });
   };
 
