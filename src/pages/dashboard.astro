@@ -77,7 +77,7 @@ if (!payload) {
         <p class="text-sm text-base-content/60 mt-1 mb-3">
           Connect your EVM wallet (MetaMask) or Abstract Account to view balances and sign transactions.
         </p>
-        <WalletConnect client:load />
+        <WalletConnect client:load userEmail={payload.email} />
       </div>
     </div>
 
