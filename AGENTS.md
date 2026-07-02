@@ -36,7 +36,8 @@ This is a compact guide for future sessions in the `counter2` repository.
 ## Wallet / Abstract Global Wallet
 - **Component**: `src/components/WalletConnect.tsx` on the dashboard.
 - **Library**: `viem` + `@abstract-foundation/agw-client`.
-- **Flow**: Connect MetaMask → switch to Abstract chain → compute counterfactual AA address via `getSmartAccountAddressFromInitialSigner` → show AA balance → deploy AA via `deployAccount` → send UserOps via `createAbstractClient().sendCalls()`.
+- **Flow**: Connect MetaMask → switch to Abstract chain → compute counterfactual AA address via `getSmartAccountAddressFromInitialSigner` → show AA balance → deploy AA via `deployAccount` → send UserOps via `createAbstractClient().sendTransactionBatch()`.
+- **Gas-Free UserOps**: Use Abstract testnet paymaster at `0xbe80eae2a968c257a0dc965c59d19606df0fb518` + `encodeFunctionData({ abi: [{ name: "general", type: "function", inputs: [{ name: "_input", type: "bytes" }] }], functionName: "general", args: ["0x"] })` as `paymasterInput`. Pass both as params to `sendTransactionBatch` — do NOT use `customPaymasterHandler` (it doesn't set `isSponsored` in `prepareTransactionRequest`, causing balance check failures for zero-balance users).
 - **Chains**: Abstract Testnet (11124) and Abstract Mainnet (2741) are in `viem/chains`.
 - **`isSmartAccountDeployed`** is not publicly exported; use `publicClient.getCode({ address })` to check.
 

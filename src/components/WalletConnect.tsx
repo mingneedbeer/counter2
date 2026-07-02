@@ -13,6 +13,10 @@ const TOKEN_BYTECODE_RAW = "0x00080000000000020000008004000039000000400040043f00
 const checkIsDeployed = (publicClient: ReturnType<typeof createPublicClient>, address: Address) =>
   publicClient.getCode({ address }).then((code) => code !== "0x" && code !== undefined);
 
+const ABSTRACT_TESTNET_PAYMASTER = "0xEdfC685a0D638820A50471d7a7c7061B8fFA912D" as const;
+const PAYMASTER_GENERAL_ABI = [{ name: "general", type: "function", inputs: [{ name: "_input", type: "bytes" }] }] as const;
+const PAYMASTER_INPUT = encodeFunctionData({ abi: PAYMASTER_GENERAL_ABI, functionName: "general", args: ["0x"] });
+
 const TOKEN_SOURCE = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
@@ -297,11 +301,12 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
     addTxLog({ action: "UserOp", hash: "", status: "pending", message: "Waiting for MetaMask confirmation..." });
     try {
       const abstractClient = await getAbstractClient();
-      updateLastTxLog({ message: "Submitting UserOp to Abstract bundler..." });
-      const result = await abstractClient.sendCalls({
+      updateLastTxLog({ message: "Submitting gas-free UserOp to Abstract bundler..." });
+      const hash = await abstractClient.sendTransactionBatch({
         calls: [{ to: wallet.eoa, value: parseEther("0.01"), data: "0x" }],
+        paymaster: ABSTRACT_TESTNET_PAYMASTER,
+        paymasterInput: PAYMASTER_INPUT,
       });
-      const hash = result.id;
       updateLastTxLog({ hash, status: "success", message: "UserOp submitted to bundler" });
       await refreshBalances();
       try {
@@ -454,11 +459,12 @@ export default function WalletConnect({ userEmail }: { userEmail?: string }) {
         functionName: "transfer",
         args: [transferTo as Address, parseEther(transferAmount)],
       });
-      updateLastTxLog({ message: "Submitting transfer UserOp to Abstract bundler..." });
-      const result = await abstractClient.sendCalls({
+      updateLastTxLog({ message: "Submitting gas-free transfer UserOp to Abstract bundler..." });
+      const hash = await abstractClient.sendTransactionBatch({
         calls: [{ to: tokenAddress, data, value: 0n }],
+        paymaster: ABSTRACT_TESTNET_PAYMASTER,
+        paymasterInput: PAYMASTER_INPUT,
       });
-      const hash = result.id;
       updateLastTxLog({ hash, status: "success", message: "Transfer UserOp submitted to bundler" });
       try {
         updateLastTxLog({ message: "Waiting for transfer confirmation..." });
